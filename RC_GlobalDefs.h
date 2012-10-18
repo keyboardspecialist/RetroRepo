@@ -1,0 +1,7 @@
+#ifndef RC_GLOBALDEFS_H_INCLUDED
+#define RC_GLOBALDEFS_H_INCLUDED
+
+#define TRUE 1
+#define FALSE 0
+
+#endif // RC_GLOBALDEFS_H_INCLUDED
