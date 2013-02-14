@@ -2,6 +2,7 @@
 #define __RCENGINE_H__
 
 #include <SDL/SDL.h>
+//#include <SDL/SDL_opengl.h>
 #include <SDL/SDL_image.h>
 #include <SDL/SDL_ttf.h>
 
@@ -18,7 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define ENGINE_CONFIG_FILE "luascripts/engine_init.lua"
+#define ENGINE_CONFIG_FILE "C:/Users/Jason/Documents/C code/RetroEngine/test_env/luascripts/engine_init.lua"
 
 
 

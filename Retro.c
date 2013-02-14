@@ -6,6 +6,7 @@
 /*
     GLOBAL VARIABLES
 */
+int __opengl;
 int _debug_mode;
 int _engine_running;
 int _dev_console_active;
@@ -19,7 +20,7 @@ ConsoleInformation  *_dev_console;
 lua_State *RC_L;
 
 Retro_Clock r_clock;
-
+Retro_MMap r_mmap;
 
 //deprecated
 void
@@ -56,6 +57,7 @@ _dev_console_active = FALSE;
 _world_map = NULL;
 _pcam = NULL;
 
+//__opengl = FALSE; no longer in use
 #ifdef _DEBUG_MODE_
 _debug_mode = TRUE;
 #endif
@@ -63,11 +65,18 @@ _debug_mode = TRUE;
     RC_LuaInit(&RC_L);
     if(SDL_Init(SDL_INIT_EVERYTHING) == 0)
     {
+        Uint32 flags;
         debug("SDL_Init() successful...");
-        if((_render_data = RC_Init(RC_L, SDL_HWSURFACE | SDL_DOUBLEBUF)) != NULL)
+  /*      if(__opengl)
+            flags = SDL_HWSURFACE | SDL_GL_DOUBLEBUFFER | SDL_OPENGL;
+        else*/
+            flags = SDL_HWSURFACE | SDL_DOUBLEBUF;
+        if((_render_data = RC_Init(RC_L, flags)) != NULL)
         {
             //TURN ON LIGHTING FOR NOW
-            _render_data->render_light = TRUE;
+            _render_data->render_light = FALSE;
+            //BILINEAR FILTERING
+            _render_data->bi_filter = TRUE;
             /* Initialize the console, so we  can start sending debug statements to it */
             SDL_Rect r;
             r.x = 0;
@@ -129,7 +138,7 @@ Retro_EventHandler(SDL_Event *event)
         case SDL_QUIT:
             _engine_running = FALSE;
             break;
-        case SDL_KEYDOWN:  //TODO: smooth input, detect held keys
+        case SDL_KEYDOWN:
         {
             SDL_KeyboardEvent kb = event->key;
             SDL_keysym k = kb.keysym;
@@ -137,9 +146,14 @@ Retro_EventHandler(SDL_Event *event)
             switch(k.sym)
             {
                 case SDLK_BACKQUOTE:
-                    _dev_console_active = !_dev_console_active;
-                    if(_dev_console_active)
+                        _dev_console_active = TRUE;
                         CON_Show(_dev_console);
+                    break;
+                case SDLK_l:
+                    _render_data->render_light = !_render_data->render_light;
+                    break;
+                case SDLK_b:
+                    _render_data->bi_filter = !_render_data->bi_filter;
                     break;
                 default:
                     printf("\nKEY : %d", k.sym);
@@ -169,7 +183,7 @@ Retro_ConsoleEventHandler(ConsoleInformation *cl, char *cmd)
         _world_map = RC_MapGenCave(rand() % 10000 + 5, 32, 32, 40, 5, 1, 8);
         _pcam->pos_x = _world_map->start_x;
         _pcam->pos_y = _world_map->start_y;
-
+        Retro_MiniMapInit();
         RC_ConsoleDebugOut(NULL, "Finished");
     }
     else if(strcmp(tok, "savemap") == 0)
@@ -196,6 +210,7 @@ Retro_ConsoleEventHandler(ConsoleInformation *cl, char *cmd)
         _world_map = RC_LoadMap(fname);
         _pcam->pos_x = _world_map->start_x;
         _pcam->pos_y = _world_map->start_y;
+        Retro_MiniMapInit();
         free(fname);
     }
     else if(strcmp(tok, "stats") == 0)
@@ -237,6 +252,22 @@ Retro_ConsoleEventHandler(ConsoleInformation *cl, char *cmd)
         }
 
     }
+    else if(strcmp(tok, "ex_bfilter") == 0)
+    {
+        //toggle lighting
+        tok = strtok(NULL, delims);
+        int do_l = strtol(tok, NULL, 10); //a bit unsafe
+
+        if(do_l)
+        {
+            _render_data->bi_filter = TRUE;
+        }
+        else
+        {
+            _render_data->bi_filter = FALSE;
+        }
+
+    }
     else if(strcmp(tok, "timescale") == 0)
     {
         tok = strtok(NULL, delims);
@@ -266,29 +297,145 @@ Retro_ConsoleEventHandler(ConsoleInformation *cl, char *cmd)
 }
 
 void
-Retro_fpsInfoDraw(void)
+Retro_DebugInfoDraw(void)
 {
     if(TTF_WasInit())
     {
         SDL_Color color = {0xFF, 0xFF, 0xFF};
-        SDL_Surface *fps;
-        TTF_Font *font = TTF_OpenFont("Garuda.ttf", 24);
+        SDL_Surface *fps, *xy, *rot;
+        TTF_Font *font = TTF_OpenFont("Garuda.ttf", 18);
         if(!font)
         {
             RC_ConsoleDebugOut(NULL,"\nTTF_OpenFont failed: %s\n", TTF_GetError());
             return;
         }
-        char buf[15];
+        char buf[100];
         sprintf(buf, "FPS: %f", _FPS);
         if(!(fps=TTF_RenderText_Solid(font, buf, color)))
         {
             RC_ConsoleDebugOut(NULL,"TTF_RenderText failed: %s", TTF_GetError());
             return;
         }
-        SDL_BlitSurface(fps, NULL, _render_data->frame_buffer, NULL);
+        sprintf(buf, "X[%3.2f] Y[%3.2f]", _pcam->pos_x, _pcam->pos_y);
+        if(!(xy=TTF_RenderText_Solid(font, buf, color)))
+        {
+            RC_ConsoleDebugOut(NULL,"TTF_RenderText failed: %s", TTF_GetError());
+            return;
+        }
+        sprintf(buf, "Cam X[%3.2f] Y[%3.2f]", _pcam->dir_x, _pcam->dir_y);
+        if(!(rot=TTF_RenderText_Solid(font, buf, color)))
+        {
+            RC_ConsoleDebugOut(NULL,"TTF_RenderText failed: %s", TTF_GetError());
+            return;
+        }
+
+        SDL_Rect r;
+        r.x = 0;
+        r.y = 0;
+        r.h = fps->h;
+        r.w = fps->w;
+        SDL_BlitSurface(fps, NULL, _render_data->frame_buffer, &r);
+        r.y = r.y + xy->h;
+        r.h = xy->h;
+        r.w = xy->w;
+        SDL_BlitSurface(xy, NULL, _render_data->frame_buffer, &r);
+        r.y = r.y + rot->h;
+        r.h = rot->h;
+        r.w = rot->w;
+        SDL_BlitSurface(rot, NULL, _render_data->frame_buffer, &r);
         SDL_FreeSurface(fps);
+        SDL_FreeSurface(xy);
+        SDL_FreeSurface(rot);
         TTF_CloseFont(font);
     }
+}
+
+void
+Retro_MiniMapInit(void)
+{
+    if(_world_map)
+    {
+        r_mmap.c_size = 4;
+        r_mmap.m_rect = malloc(sizeof(SDL_Rect));
+        r_mmap.c_rect = malloc(sizeof(SDL_Rect));
+        r_mmap.m_rect->w = _world_map->mapsize_x * r_mmap.c_size;
+        r_mmap.m_rect->h = _world_map->mapsize_y * r_mmap.c_size;
+        r_mmap.m_rect->y = 0;
+        r_mmap.m_rect->x = _render_data->scr_width - r_mmap.m_rect->w;
+        r_mmap.c_rect->w = r_mmap.c_size;
+        r_mmap.c_rect->h = r_mmap.c_size;
+        r_mmap.offset_x = _render_data->scr_width - r_mmap.m_rect->w;
+        r_mmap.offset_y = 0;
+
+        r_mmap.s_flr = 0x007F7F7F;
+        r_mmap.s_wall = 0x00FFFFFF;
+        r_mmap.u_seen = 0x00000000;
+        r_mmap.mmap = SDL_CreateRGBSurface(0, r_mmap.m_rect->w, r_mmap.m_rect->h, _render_data->bit_depth, 0, 0, 0, 0);
+        SDL_SetAlpha(r_mmap.mmap, 0, 180);
+
+        int x=0,y=0;
+        for(x=0; x < _world_map->mapsize_x; x++)
+        for(y=0; y < _world_map->mapsize_y; y++)
+        {
+            r_mmap.c_rect->x = (r_mmap.c_size * x);
+            r_mmap.c_rect->y = (r_mmap.c_size * y);
+            SDL_FillRect(r_mmap.mmap,r_mmap.c_rect, r_mmap.u_seen);
+        }
+    }
+}
+
+void
+Retro_MiniMap(void)
+{
+    int x, y;
+    x = (int)_pcam->pos_x;
+    y = (int)_pcam->pos_y;
+    //flag seen cells; TODO: only see cells in front of the camera; Only redraw currently seen cells
+    int i,j;
+    Uint32 fl;
+    for(i = x-1; i < x+1; i++)
+    for(j = y-1; j < y+1; j++)
+    {
+        if(i >= _world_map->mapsize_x) continue;
+        if(j >= _world_map->mapsize_y) continue;
+        if(i<0) continue;
+        if(j<0) continue;
+        fl = _world_map->map_data[i][j].flags;
+        if(!(fl&F_SEEN))
+        {
+            _world_map->map_data[i][j].flags |= F_SEEN;
+        }
+
+    }
+    Uint32 xx, yy;
+    for(xx = 0; xx < _world_map->mapsize_x ; xx++)
+    for(yy = _world_map->mapsize_y-1; yy >0 ; yy--)
+    {
+       // fprintf(stderr, "xx %d yy %d\n", xx, yy);
+        Uint32 fl = _world_map->map_data[xx][yy].flags;
+        if(fl & F_SEEN)
+        {
+            if(fl & F_WALL)
+            {
+                r_mmap.c_rect->x = (r_mmap.c_size * xx);
+                r_mmap.c_rect->y = (r_mmap.c_size * yy);
+                SDL_FillRect(r_mmap.mmap,r_mmap.c_rect, r_mmap.s_wall);
+            }
+            if(fl & F_FLOOR)
+            {
+                r_mmap.c_rect->x = (r_mmap.c_size * xx);
+                r_mmap.c_rect->y = (r_mmap.c_size * yy);
+                SDL_FillRect(r_mmap.mmap,r_mmap.c_rect, r_mmap.s_flr);
+            }
+        }
+   /*     else
+        {
+            r_mmap.c_rect->x = (r_mmap.c_size * xx);
+            r_mmap.c_rect->y = (r_mmap.c_size * yy);
+            SDL_FillRect(r_mmap.mmap,r_mmap.c_rect, r_mmap.u_seen);
+        }*/
+    }
+    SDL_BlitSurface(r_mmap.mmap, NULL, _render_data->frame_buffer, r_mmap.m_rect);
 }
 
 void
@@ -296,15 +443,15 @@ Retro_cleanup(void)
 {
     SDL_FreeSurface(_render_data->screen);
     SDL_FreeSurface(_render_data->frame_buffer);
-    free(_render_data);
-    //CON_Free(_dev_console);
     CON_Destroy(_dev_console);
     if(_world_map)
         RC_FreeMap(_world_map); //safe to call on NULL, but just to be sure
     free(_pcam);
     RC_LuaClose(RC_L);
-    SDL_Quit();
+    RC_RaycastEngineCleanup(_render_data);
+    free(_render_data);
     TTF_Quit();
+    SDL_Quit();
 }
 
 
@@ -335,8 +482,9 @@ Retro_render(void)
         SDL_LockSurface(_render_data->frame_buffer);
         RC_RaycastDraw(_render_data, _world_map, _pcam, _sprite);
         SDL_UnlockSurface(_render_data->frame_buffer);
+        Retro_MiniMap();
     }
-    Retro_fpsInfoDraw();
+    Retro_DebugInfoDraw();
     if(_dev_console_active)
     {
         RC_ConsoleDraw(_dev_console);
@@ -355,7 +503,9 @@ Retro_exec(void)
 {
     int ret = 0, skip=0;
     if(Retro_init() == FALSE)
+    {
         ret = -1;
+    }
     else
     {
         r_clock.time_scale = 1.0;
@@ -384,9 +534,8 @@ Retro_exec(void)
 
             _FPS = 1.0 / ((r_clock.new_time - r_clock.old_time) / 1000.0);
         }
-        Retro_cleanup();
     }
-
+    Retro_cleanup();
     return ret;
 }
 

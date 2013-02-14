@@ -29,17 +29,53 @@ RC_Init(lua_State *L, Uint32 flags)
     rd->wall_scale = (double)lua_tonumber(L, 6);
     rd->light_rad = 5.0;
     rd->render_light = FALSE;
-    rd->screen = SDL_SetVideoMode(rd->scr_width, rd->scr_height, rd->bit_depth, flags);
+
+/*
+    if(flags & SDL_OPENGL)
+    { //some standard values for now
+        SDL_GL_SetAttribute(SDL_GL_RED_SIZE,            8);
+        SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE,          8);
+        SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE,           8);
+        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE,          8);
+
+        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,          16);
+        SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE,            32);
+
+        SDL_GL_SetAttribute(SDL_GL_ACCUM_RED_SIZE,        8);
+        SDL_GL_SetAttribute(SDL_GL_ACCUM_GREEN_SIZE,    8);
+        SDL_GL_SetAttribute(SDL_GL_ACCUM_BLUE_SIZE,        8);
+        SDL_GL_SetAttribute(SDL_GL_ACCUM_ALPHA_SIZE,    8);
+
+        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,  1);
+
+        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,  2);
+
+        rd->screen = SDL_SetVideoMode(rd->scr_width, rd->scr_height, rd->bit_depth, flags);
+
+        glClearColor(0,0,0,0);
+        glViewport(0,0,rd->scr_width, rd->scr_height);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        glOrtho(0,rd->scr_width, rd->scr_height, 0, 1, -1);
+        glMatrixMode(GL_MODELVIEW);
+        glEnable(GL_TEXTURE_2D);
+        glLoadIdentity();
+    }
+    else
+    {*/
+        rd->screen = SDL_SetVideoMode(rd->scr_width, rd->scr_height, rd->bit_depth, flags);
+        if(flags & SDL_DOUBLEBUF)
+            rd->frame_buffer = SDL_CreateRGBSurface(0, rd->scr_width, rd->scr_height, rd->bit_depth, 0, 0, 0, 0);
+        else
+            rd->frame_buffer = NULL;
+    //}
+
 
     SDL_WM_SetCaption(lua_tostring(L, 7), lua_tostring(L, 7));
-
-    if(flags & SDL_DOUBLEBUF)
-        rd->frame_buffer = SDL_CreateRGBSurface(0, rd->scr_width, rd->scr_height, rd->bit_depth, 0, 0, 0, 0);
-    else
-        rd->frame_buffer = NULL;
-
     //clear lua stack
     lua_settop(L, 0);
+    //precalc floor/ceil data
+    RC_Precalc(rd);
     return rd;
 }
 
@@ -53,6 +89,8 @@ RC_ResetVideoMode(RC_RenderData *rc_r, Uint32 flags)
     {
         SDL_FreeSurface(rc_r->screen);
         rc_r->screen = n_scr;
+        //recalc precalc :)
+        RC_Precalc(rc_r);
     }
 }
 

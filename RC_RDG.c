@@ -142,7 +142,7 @@ texturePass(void) //TODO: FIX FLOOR AND CEIL TEXTURE ISSUE
 }
 
 //find a starting location
-//hopefully reliable
+//hopefully reliable **WILL CRASH**
 void
 findStart(void)
 {

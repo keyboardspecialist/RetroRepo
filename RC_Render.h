@@ -5,6 +5,7 @@
 #include "RC_GlobalDefs.h"
 
 #include <SDL/SDL.h>
+//#include <SDL/SDL_opengl.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,9 +28,10 @@ typedef struct
     Uint32      bit_depth;
     Uint32      tex_width;
     Uint32      tex_height;
+    Uint32      render_light;
+    Uint32      bi_filter;
     double      wall_scale;
     double      light_rad;
-    Uint32      render_light;
 }RC_RenderData;
 
 /*
@@ -54,4 +56,9 @@ extern double _spriteDistance[NUMSPRITES];
 
 extern void RC_UpdateCamera(RC_PlayerCamera *cam, RC_Map *map, RC_InputControls *rc_i, Uint32 dtime);
 extern void RC_RaycastDraw(RC_RenderData *rd, RC_Map *map, RC_PlayerCamera *cam, RC_Sprite *sprites);
+extern void RC_PrecalcFCDist(RC_RenderData *rd);
+extern void RC_RaycastEngineCleanup(RC_RenderData *rd);
+
+//OGL Defs
+extern void RC_OpenGLRaycast(RC_RenderData *rd, RC_Map *map, RC_PlayerCamera *cam, RC_Sprite *sprites);
 #endif

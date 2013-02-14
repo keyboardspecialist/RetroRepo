@@ -18,7 +18,7 @@
 /*
  * MapCell flags and defines
  */
-#define M_TEXTURE(t) t & 0x0000FFFF
+#define M_TEXTURE(t) (t & 0x0000FFFF)
 #define M_FLOOR(f)   (f & 0x0000FF00)>>8
 #define M_CEIL(c)    (c & 0x00FF0000)>>16
 #define M_ALPHA(a)   (a & 0xFF000000)
@@ -26,7 +26,7 @@
 #define F_WALL 0x00000001
 #define F_FLOOR 0x00000002
 #define F_SPRITE 0x00000004
-#define F_COLLIDABLE 0x00000008
+#define F_SEEN   0x00000008
 
 
 /*
