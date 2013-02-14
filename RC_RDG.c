@@ -152,8 +152,6 @@ findStart(void)
     srand(time(NULL));
 
     int gi = 1;
-RC_ConsoleDebugOut(NULL,"Cave Gen find start... [%d]", gi++);
-
     //randomly choose spots on the map, if its a floor tile check around it to make sure theres some room
     //if we keep failing, just pick one and be done with it
     while(!done && tries < 100)

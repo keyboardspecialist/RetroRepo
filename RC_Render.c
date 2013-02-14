@@ -123,8 +123,8 @@ darken_pixel(Uint32 *pix, double dist)
     *pix =((c1&0xFF00) | (c2&0xFF00FF));
 }
 
-/*
-    ridiculous code by centrinia
+
+//    ridiculous code by centrinia
 
 #define RADIX_POINT             16
 #define R(v) ((v & 0x00FF0000)>>16)
@@ -282,7 +282,7 @@ bilinear_filter (Uint32 * pixels, const Uint32 w, double u, double v,
   o_b >>= 16;
 #else
 
-#if 1
+#if 0
   Uint32 o_r = bimix (R (p1), R (p2), R (p3), R (p4), Fx, Fy);
   Uint32 o_g = bimix (G (p1), G (p2), G (p3), G (p4), Fx, Fy);
   Uint32 o_b = bimix (B (p1), B (p2), B (p3), B (p4), Fx, Fy);
@@ -301,34 +301,41 @@ bilinear_filter (Uint32 * pixels, const Uint32 w, double u, double v,
   *c = o_r | o_g | o_b;
 }
 
-*/
+
 /*
     This implementation uses fixed point math to avoid float -> int conversions
 
     It uses floats now, and is slower than the above code
 */
 
-#define R(v) ((v & 0x00FF0000)>>16)
-#define G(v) ((v & 0x0000FF00)>>8)
-#define B(v) (v & 0x000000FF)
+//#define R(v) ((v & 0x00FF0000)>>16)
+//#define G(v) ((v & 0x0000FF00)>>8)
+//#define B(v) (v & 0x000000FF)
 
-
+/*
 void
 bilinear_filter(Uint32 *pixels, const Uint32 w, double u, double v, Uint32 *c)
 {
-/*    Uint32 fx = (Uint32)(u * 65536.0);
-    Uint32 fy = (Uint32)(v * 65536.0);
-    Uint32 px = fx & 0xFFFF0000; //floor
-    Uint32 py = fy & 0xFFFF0000;
-*/
+//    Uint32 fx = (Uint32)(u * 65536.0);
+//    Uint32 fy = (Uint32)(v * 65536.0);
+//    Uint32 px = fx & 0xFFFF0000; //floor
+//    Uint32 py = fy & 0xFFFF0000;
+
     int px = (int)u;
     int py = (int)v;
-
-    Uint32 p1 = pixels[w * ((py) & (w)) + ((px) & (w))];
-    Uint32 p2 = pixels[w * ((py) & (w)) + ((px+1) & (w-1))];
-    Uint32 p3 = pixels[w * ((py+1) & (w-1)) + ((px) & (w))];
-    Uint32 p4 = pixels[w * ((py+1) & (w-1)) + ((px+1) & (w-1))];
-
+Uint32 wlog = log2plus1 (w) - 1;
+//    Uint32 p1 = pixels[w * ((py) & (w-1)) + ((px) & (w-1))];
+//    Uint32 p2 = pixels[w * ((py) & (w-1)) + ((px+1) & (w-1))];
+//    Uint32 p3 = pixels[w * ((py+1) & (w-1)) + ((px) & (w-1))];
+//    Uint32 p4 = pixels[w * ((py+1) & (w-1)) + ((px+1) & (w-1))];
+  int px_index = px & (w - 1);
+  int pxp1_index = (px + 1) & (w - 1);
+  int py_row = (py & (w - 1)) << wlog;
+  int pyp1_row = ((py + 1) & (w - 1)) << wlog;
+  Uint32 p1 = pixels[py_row + px_index];
+  Uint32 p2 = pixels[py_row + pxp1_index];
+  Uint32 p3 = pixels[pyp1_row + px_index];
+  Uint32 p4 = pixels[pyp1_row + pxp1_index];
     //calc fractional portion
     //Uint32 Fx = fx & 0x0000FFFF;
     //Uint32 Fy = fy & 0x0000FFFF;
@@ -338,12 +345,12 @@ bilinear_filter(Uint32 *pixels, const Uint32 w, double u, double v, Uint32 *c)
     float Fy = v - py;
     float Fx1 = 1.0f - Fx;
     float Fy1 = 1.0f - Fy;
- /*
-    Uint32 w1 = (Fx1 * Fy1) ;
-    Uint32 w2 = (Fx * Fy1) ;
-    Uint32 w3 = (Fx1 * Fy) ;
-    Uint32 w4 = (Fx * Fy) ;
-*/
+
+ //   Uint32 w1 = (Fx1 * Fy1) ;
+ //   Uint32 w2 = (Fx * Fy1) ;
+ //   Uint32 w3 = (Fx1 * Fy) ;
+ //   Uint32 w4 = (Fx * Fy) ;
+
     int w1 = Fx1 * Fy1 * 256.0f;
     int w2 = Fx * Fy1 * 256.0f;
     int w3 = Fx1 * Fy * 256.0f;
@@ -359,7 +366,7 @@ bilinear_filter(Uint32 *pixels, const Uint32 w, double u, double v, Uint32 *c)
     //o_b = o_b >= 255 ? 255 : o_b;
     *c = ( (o_r>>8) <<16) | ((o_g>>8) <<8) | (o_b>>8);
 }
-
+*/
 
 
 /*
@@ -393,7 +400,6 @@ RC_Precalc(RC_RenderData *rd)
     for(; x < rd->scr_width; x++)
     {
         cam_x_lookup[x] = 2 * x / (double)rd->scr_width - 1;
-
         fl_dist_lookup[x] = malloc(sizeof(double) * rd->scr_height);
     }
 
@@ -503,7 +509,6 @@ RC_RaycastDraw(RC_RenderData *rd, RC_Map *map, RC_PlayerCamera *cam, RC_Sprite *
         else
             wallX = rayPosY + ((mapX - rayPosX + (1 - stepX) /2) / rayDirX) * rayDirY;
 
-        double tu = wallX;
         wallX -= floor(wallX);
         texX = (int)(wallX * (double)rd->tex_width);
         if(side == 0 && rayDirX > 0) texX = rd->tex_width - texX - 1;
@@ -525,10 +530,9 @@ RC_RaycastDraw(RC_RenderData *rd, RC_Map *map, RC_PlayerCamera *cam, RC_Sprite *
             Uint32 color;
             if(rd->bi_filter)
             {
-                //double tu = (texX / (double)rd->tex_width);
-                double tv = (texY / (double)rd->tex_height);
+                double tu = (texX / (double)rd->tex_width);
+                double tv = d / (double)(lineHeight<<8);
                 bilinear_filter(((Uint32 *)(*(map->texture_list+useTexture))->pixels),rd->tex_width, tu, tv, &color);
-                //bilinear_filter( ((Uint32 *)(*(map->texture_list+useTexture))->pixels), rd->tex_width, tu, tv, &color);
             }
             else
             {
@@ -581,29 +585,29 @@ RC_RaycastDraw(RC_RenderData *rd, RC_Map *map, RC_PlayerCamera *cam, RC_Sprite *
             tFloor = (M_FLOOR((map->map_data[(int)currentFloorX][(int)currentFloorY]).texture_data))-1;
             tCeil = (M_CEIL((map->map_data[(int)currentFloorX][(int)currentFloorY]).texture_data))-1;
 
-            //double fu, fv;
             int floorTexX, floorTexY;
-            //fu = fmod(currentFloorX * rd->tex_width,(double)rd->tex_width);
-            //fv = fmod(currentFloorY * rd->tex_height,(double)rd->tex_height);
-            //floorTexX = floor(fu);
-            //floorTexY = floor(fv);
             floorTexX = (int)(((int)(currentFloorX * rd->tex_width)) % rd->tex_width);
             floorTexY = (int)(((int)(currentFloorY * rd->tex_height)) % rd->tex_height);
             //draw floor
             Uint32 color;
-            //fu -= floorTexX;
-            //fv -= floorTexY;
- /*           if(rd->bi_filter)
-                //bilinear_filter( (Uint32*)(*(map->texture_list+tFloor))->pixels, (*(map->texture_list+tFloor))->w, fu, fv, &color);
-                bilinear_filter( *(map->texture_list+tFloor), fu, fv, &color);
-*/
-            color = ((Uint32 *)(*(map->texture_list+tFloor))->pixels)[rd->tex_width * floorTexY + floorTexX];
+            double fu, fv;
+            if(rd->bi_filter)
+            {
+                //fu = floorTexX / (double)rd->tex_width;
+                //fv = currentDist / (double)(rd->scr_height <<8);
+                bilinear_filter( (Uint32*)(*(map->texture_list+tFloor))->pixels, rd->tex_width, currentFloorX, currentFloorY, &color);
+            }
+            else
+                color = ((Uint32 *)(*(map->texture_list+tFloor))->pixels)[rd->tex_width * floorTexY + floorTexX];
 
             if(rd->render_light) darken_pixel(&color, fl_dist_lookup[x][y]);
             ((Uint32*)rd->frame_buffer->pixels)[rd->scr_width * y + x] = color;
 
             //draw ceiling, inverse of the floor
-            color = ((Uint32 *)(*(map->texture_list+tCeil))->pixels)[rd->tex_width * floorTexY + floorTexX];
+            if(rd->bi_filter)
+                bilinear_filter( (Uint32*)(*(map->texture_list+tCeil))->pixels, rd->tex_width, currentFloorX, currentFloorY, &color);
+            else
+                color = ((Uint32 *)(*(map->texture_list+tCeil))->pixels)[rd->tex_width * floorTexY + floorTexX];
             if(rd->render_light) darken_pixel(&color, fl_dist_lookup[x][y]);
             ((Uint32*)rd->frame_buffer->pixels)[rd->scr_width * (rd->scr_height - y) + x] = color;
         }
