@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define VERSION "0.1.4a"
+#define VERSION "0.1.6a"
 
 
 typedef struct
