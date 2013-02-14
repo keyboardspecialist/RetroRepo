@@ -530,8 +530,8 @@ RC_RaycastDraw(RC_RenderData *rd, RC_Map *map, RC_PlayerCamera *cam, RC_Sprite *
             Uint32 color;
             if(rd->bi_filter)
             {
-                double tu = (texX / (double)rd->tex_width);
-                double tv = d / (double)(lineHeight<<8);
+                double tu = wallX * -2.0;//(wallX * (double)rd->tex_width) / (double)(rd->tex_width>>1);
+                double tv = d / (double)(lineHeight*rd->tex_height);
                 bilinear_filter(((Uint32 *)(*(map->texture_list+useTexture))->pixels),rd->tex_width, tu, tv, &color);
             }
             else
@@ -593,9 +593,9 @@ RC_RaycastDraw(RC_RenderData *rd, RC_Map *map, RC_PlayerCamera *cam, RC_Sprite *
             double fu, fv;
             if(rd->bi_filter)
             {
-                //fu = floorTexX / (double)rd->tex_width;
-                //fv = currentDist / (double)(rd->scr_height <<8);
-                bilinear_filter( (Uint32*)(*(map->texture_list+tFloor))->pixels, rd->tex_width, currentFloorX, currentFloorY, &color);
+                fu = currentFloorX ;
+                fv = currentFloorY * 2.0;
+                bilinear_filter( (Uint32*)(*(map->texture_list+tFloor))->pixels, rd->tex_width, fu, fv, &color);
             }
             else
                 color = ((Uint32 *)(*(map->texture_list+tFloor))->pixels)[rd->tex_width * floorTexY + floorTexX];
@@ -605,7 +605,7 @@ RC_RaycastDraw(RC_RenderData *rd, RC_Map *map, RC_PlayerCamera *cam, RC_Sprite *
 
             //draw ceiling, inverse of the floor
             if(rd->bi_filter)
-                bilinear_filter( (Uint32*)(*(map->texture_list+tCeil))->pixels, rd->tex_width, currentFloorX, currentFloorY, &color);
+                bilinear_filter( (Uint32*)(*(map->texture_list+tCeil))->pixels, rd->tex_width, fu, fv, &color);
             else
                 color = ((Uint32 *)(*(map->texture_list+tCeil))->pixels)[rd->tex_width * floorTexY + floorTexX];
             if(rd->render_light) darken_pixel(&color, fl_dist_lookup[x][y]);

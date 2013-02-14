@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define ENGINE_CONFIG_FILE "C:/Users/Jason/Documents/C code/RetroEngine/test_env/luascripts/engine_init.lua"
+#define ENGINE_CONFIG_FILE "luascripts/engine_init.lua"
 
 
 
